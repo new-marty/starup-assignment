@@ -140,7 +140,3 @@ flowchart LR
 | 豪ドル           | AUD    |
 | カナダドル       | CAD    |
 | スイスフラン     | CHF    |
-
-## ライセンス
-
-MIT

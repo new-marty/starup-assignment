@@ -8,7 +8,7 @@ import { ExpenseList } from '@/components/expense/expense-list';
 import { AddExpenseForm } from '@/components/expense/add-expense-form';
 import { BalanceSummary } from '@/components/settlement/balance-summary';
 import { SettlementList } from '@/components/settlement/settlement-list';
-import { CurrencySelector } from '@/components/currency/currency-selector';
+import { CalculationInfo } from '@/components/settlement/calculation-info';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 
@@ -50,8 +50,8 @@ export function GroupDashboard() {
         </CardContent>
       </Card>
 
-      {/* Currency Settings (for international trips) */}
-      <CurrencySelector />
+      {/* Calculation Info */}
+      <CalculationInfo />
 
       {/* Add Expense */}
       <AddExpenseForm />

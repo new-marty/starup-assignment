@@ -26,6 +26,8 @@ export interface Expense {
   amount: number;
   /** Currency code (JPY, USD, EUR, etc.) */
   currency: string;
+  /** Exchange rate to JPY at the time of expense creation (fixed) */
+  rateToJPY: number;
   /** Description of the expense */
   description: string;
   /** Array of member IDs to split among */

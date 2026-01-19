@@ -1,18 +1,16 @@
 import { atom } from 'jotai';
 import { membersAtom } from './group';
 import { expensesAtom } from './expenses';
-import { currenciesAtom } from './currencies';
 import { calculateBalances, calculateSettlements } from '@/lib/settlement';
 
 /**
  * Derived atom that calculates balances for each member
- * Automatically recalculates when members, expenses, or currencies change
+ * Automatically recalculates when members or expenses change
  */
 export const balancesAtom = atom((get) => {
   const members = get(membersAtom);
   const expenses = get(expensesAtom);
-  const currencies = get(currenciesAtom);
-  return calculateBalances(members, expenses, currencies);
+  return calculateBalances(members, expenses);
 });
 
 /**

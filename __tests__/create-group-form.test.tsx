@@ -33,6 +33,7 @@ describe('CreateGroupForm', () => {
         payerId: 'm1',
         amount: 1000,
         currency: 'JPY',
+        rateToJPY: 1,
         description: 'Dinner',
         splitAmong: ['m1', 'm2'],
         createdAt: new Date(),

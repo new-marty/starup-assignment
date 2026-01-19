@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -14,17 +14,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { membersAtom, expensesAtom, currenciesAtom } from '@/atoms';
-import { generateId } from '@/lib/currency';
+import { membersAtom, expensesAtom } from '@/atoms';
+import { generateId, COMMON_CURRENCIES } from '@/lib/currency';
 import type { Expense } from '@/types';
-import { Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 
 /**
  * Form for adding a new expense
+ * Fetches exchange rates on-demand when a foreign currency is selected
  */
 export function AddExpenseForm() {
   const members = useAtomValue(membersAtom);
-  const currencies = useAtomValue(currenciesAtom);
   const [expenses, setExpenses] = useAtom(expensesAtom);
 
   const [payerId, setPayerId] = useState('');
@@ -33,7 +33,43 @@ export function AddExpenseForm() {
   const [description, setDescription] = useState('');
   const [splitAmong, setSplitAmong] = useState<string[]>([]);
 
-  // Initialize split among all members
+  // Exchange rate state
+  const [currentRate, setCurrentRate] = useState(1);
+  const [isLoadingRate, setIsLoadingRate] = useState(false);
+
+  // Fetch exchange rate when currency changes
+  const fetchRate = useCallback(async (currencyCode: string) => {
+    if (currencyCode === 'JPY') {
+      setCurrentRate(1);
+      return;
+    }
+
+    setIsLoadingRate(true);
+    try {
+      const response = await fetch(`/api/exchange-rates?currencies=${currencyCode}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch rate');
+      }
+      const data = await response.json();
+      const currencyData = data.currencies?.find(
+        (c: { code: string; rateToJPY: number }) => c.code === currencyCode
+      );
+      if (currencyData) {
+        setCurrentRate(currencyData.rateToJPY);
+      }
+    } catch {
+      toast.error('為替レートの取得に失敗しました');
+      // Fallback to 1 if fetch fails
+      setCurrentRate(1);
+    } finally {
+      setIsLoadingRate(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRate(currency);
+  }, [currency, fetchRate]);
+
   const handleSelectAllMembers = () => {
     setSplitAmong(members.map((m) => m.id));
   };
@@ -67,12 +103,13 @@ export function AddExpenseForm() {
       return;
     }
 
-    // Create expense
+    // Create expense with the current rate fixed
     const newExpense: Expense = {
       id: generateId(),
       payerId,
       amount: Number(amount),
       currency,
+      rateToJPY: currentRate,
       description: description.trim(),
       splitAmong,
       createdAt: new Date(),
@@ -88,6 +125,9 @@ export function AddExpenseForm() {
 
     toast.success('支出を追加しました');
   };
+
+  // Calculate JPY equivalent for display
+  const jpyEquivalent = amount ? Math.floor(Number(amount) * currentRate) : 0;
 
   return (
     <Card>
@@ -126,7 +166,7 @@ export function AddExpenseForm() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 min="0"
-                step="1"
+                step="0.01"
               />
             </div>
             <div className="w-24 space-y-2">
@@ -136,7 +176,7 @@ export function AddExpenseForm() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {currencies.map((c) => (
+                  {COMMON_CURRENCIES.map((c) => (
                     <SelectItem key={c.code} value={c.code}>
                       {c.code}
                     </SelectItem>
@@ -145,6 +185,29 @@ export function AddExpenseForm() {
               </Select>
             </div>
           </div>
+
+          {/* Exchange rate info */}
+          {currency !== 'JPY' && (
+            <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
+              {isLoadingRate ? (
+                <span className="flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  レート取得中...
+                </span>
+              ) : (
+                <>
+                  <p>
+                    レート: 1 {currency} = ¥{currentRate.toFixed(2)}
+                  </p>
+                  {amount && jpyEquivalent > 0 && (
+                    <p className="font-medium">
+                      ≈ ¥{jpyEquivalent.toLocaleString()} (この金額で計算)
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {/* Description */}
           <div className="space-y-2">
@@ -191,7 +254,11 @@ export function AddExpenseForm() {
           </div>
 
           {/* Submit */}
-          <Button type="submit" className="w-full bg-orange-400 hover:bg-orange-500">
+          <Button
+            type="submit"
+            className="w-full bg-orange-400 hover:bg-orange-500"
+            disabled={isLoadingRate}
+          >
             追加する
           </Button>
         </form>

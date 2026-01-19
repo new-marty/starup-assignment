@@ -1,11 +1,11 @@
 'use client';
 
 import { useAtom, useAtomValue } from 'jotai';
-import { expensesAtom, membersAtom, currenciesAtom } from '@/atoms';
+import { expensesAtom, membersAtom } from '@/atoms';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Trash2, Receipt } from 'lucide-react';
-import { formatCurrency } from '@/lib/settlement';
+import { COMMON_CURRENCIES } from '@/lib/currency';
 
 /**
  * List of all expenses
@@ -13,7 +13,6 @@ import { formatCurrency } from '@/lib/settlement';
 export function ExpenseList() {
   const [expenses, setExpenses] = useAtom(expensesAtom);
   const members = useAtomValue(membersAtom);
-  const currencies = useAtomValue(currenciesAtom);
 
   const handleDelete = (expenseId: string) => {
     setExpenses(expenses.filter((e) => e.id !== expenseId));
@@ -23,8 +22,8 @@ export function ExpenseList() {
     return members.find((m) => m.id === memberId)?.name ?? '不明';
   };
 
-  const getCurrency = (code: string) => {
-    return currencies.find((c) => c.code === code);
+  const getCurrencySymbol = (code: string) => {
+    return COMMON_CURRENCIES.find((c) => c.code === code)?.symbol ?? '';
   };
 
   if (expenses.length === 0) {
@@ -53,9 +52,10 @@ export function ExpenseList() {
       </CardHeader>
       <CardContent className="space-y-3">
         {expenses.map((expense) => {
-          const currency = getCurrency(expense.currency);
+          const symbol = getCurrencySymbol(expense.currency);
           const payerName = getMemberName(expense.payerId);
           const splitNames = expense.splitAmong.map(getMemberName).join('、');
+          const jpyAmount = Math.floor(expense.amount * expense.rateToJPY);
 
           return (
             <div
@@ -66,12 +66,18 @@ export function ExpenseList() {
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-medium">{expense.description}</span>
                   <span className="text-orange-500 font-bold">
-                    {currency ? formatCurrency(expense.amount, currency) : `${expense.amount}`}
+                    {symbol}
+                    {expense.amount.toLocaleString()}
                   </span>
                 </div>
                 <p className="text-sm text-gray-500">
                   {payerName}が支払い → {splitNames}で割り勘
                 </p>
+                {expense.currency !== 'JPY' && (
+                  <p className="text-xs text-gray-400">
+                    (¥{jpyAmount.toLocaleString()} @ {expense.rateToJPY.toFixed(2)})
+                  </p>
+                )}
               </div>
               <Button
                 variant="ghost"

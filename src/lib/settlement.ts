@@ -1,20 +1,18 @@
-import type { Member, Expense, Currency, MemberBalance, Settlement } from '@/types';
+import type { Member, Expense, MemberBalance, Settlement } from '@/types';
 
 /**
  * Calculate the balance for each member based on expenses
  * Positive balance = creditor (paid more than their share, should receive money)
  * Negative balance = debtor (paid less than their share, should pay money)
  *
+ * Each expense stores its own exchange rate (fixed at creation time),
+ * so we use that rate for calculation instead of the current rate.
+ *
  * @param members - List of all members
- * @param expenses - List of all expenses
- * @param currencies - List of currencies with exchange rates
+ * @param expenses - List of all expenses (each has its own rateToJPY)
  * @returns Array of member balances
  */
-export function calculateBalances(
-  members: Member[],
-  expenses: Expense[],
-  currencies: Currency[]
-): MemberBalance[] {
+export function calculateBalances(members: Member[], expenses: Expense[]): MemberBalance[] {
   // Initialize balance map
   const balanceMap = new Map<string, number>();
   members.forEach((member) => {
@@ -23,9 +21,8 @@ export function calculateBalances(
 
   // Process each expense
   expenses.forEach((expense) => {
-    // Convert amount to JPY
-    const currency = currencies.find((c) => c.code === expense.currency);
-    const amountInJPY = expense.amount * (currency?.rateToJPY ?? 1);
+    // Convert amount to JPY using the rate fixed at expense creation time
+    const amountInJPY = expense.amount * expense.rateToJPY;
 
     // Calculate per-person share (floor to avoid fractional yen)
     const splitCount = expense.splitAmong.length;
@@ -33,9 +30,12 @@ export function calculateBalances(
 
     const perPersonShare = Math.floor(amountInJPY / splitCount);
 
-    // Add the full amount to the payer's balance (they paid this much)
+    // Add the collectible amount to the payer's balance (not the full amount)
+    // This handles rounding - payer only credits what can be collected from splits
+    // Example: 1000 yen split 3 ways = 333 each, so payer gets 999 credit (not 1000)
+    const collectibleAmount = perPersonShare * splitCount;
     const payerBalance = balanceMap.get(expense.payerId) ?? 0;
-    balanceMap.set(expense.payerId, payerBalance + amountInJPY);
+    balanceMap.set(expense.payerId, payerBalance + collectibleAmount);
 
     // Subtract each person's share from their balance (they owe this much)
     expense.splitAmong.forEach((memberId) => {
@@ -116,14 +116,4 @@ export function formatJPY(amount: number): string {
     currency: 'JPY',
     maximumFractionDigits: 0,
   }).format(amount);
-}
-
-/**
- * Format amount with currency symbol
- * @param amount - Amount
- * @param currency - Currency info
- * @returns Formatted string
- */
-export function formatCurrency(amount: number, currency: Currency): string {
-  return `${currency.symbol}${new Intl.NumberFormat('ja-JP').format(amount)}`;
 }
