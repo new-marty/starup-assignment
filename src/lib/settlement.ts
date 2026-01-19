@@ -1,0 +1,129 @@
+import type { Member, Expense, Currency, MemberBalance, Settlement } from '@/types';
+
+/**
+ * Calculate the balance for each member based on expenses
+ * Positive balance = creditor (paid more than their share, should receive money)
+ * Negative balance = debtor (paid less than their share, should pay money)
+ *
+ * @param members - List of all members
+ * @param expenses - List of all expenses
+ * @param currencies - List of currencies with exchange rates
+ * @returns Array of member balances
+ */
+export function calculateBalances(
+  members: Member[],
+  expenses: Expense[],
+  currencies: Currency[]
+): MemberBalance[] {
+  // Initialize balance map
+  const balanceMap = new Map<string, number>();
+  members.forEach((member) => {
+    balanceMap.set(member.id, 0);
+  });
+
+  // Process each expense
+  expenses.forEach((expense) => {
+    // Convert amount to JPY
+    const currency = currencies.find((c) => c.code === expense.currency);
+    const amountInJPY = expense.amount * (currency?.rateToJPY ?? 1);
+
+    // Calculate per-person share (floor to avoid fractional yen)
+    const splitCount = expense.splitAmong.length;
+    if (splitCount === 0) return;
+
+    const perPersonShare = Math.floor(amountInJPY / splitCount);
+
+    // Add the full amount to the payer's balance (they paid this much)
+    const payerBalance = balanceMap.get(expense.payerId) ?? 0;
+    balanceMap.set(expense.payerId, payerBalance + amountInJPY);
+
+    // Subtract each person's share from their balance (they owe this much)
+    expense.splitAmong.forEach((memberId) => {
+      const memberBalance = balanceMap.get(memberId) ?? 0;
+      balanceMap.set(memberId, memberBalance - perPersonShare);
+    });
+  });
+
+  // Convert to MemberBalance array
+  return members.map((member) => ({
+    memberId: member.id,
+    memberName: member.name,
+    balance: Math.floor(balanceMap.get(member.id) ?? 0),
+  }));
+}
+
+/**
+ * Calculate optimal settlements to minimize the number of transactions
+ * Uses a greedy algorithm: match largest creditor with largest debtor
+ *
+ * Algorithm based on Walica's implementation:
+ * https://qiita.com/MasashiHamaguchi/items/0348082984b8c94ca581
+ *
+ * @param balances - Array of member balances
+ * @returns Array of settlements (who pays whom how much)
+ */
+export function calculateSettlements(balances: MemberBalance[]): Settlement[] {
+  const settlements: Settlement[] = [];
+
+  // Clone to avoid mutation
+  const remaining = balances.map((b) => ({
+    memberId: b.memberId,
+    balance: b.balance,
+  }));
+
+  // Threshold for considering a balance as zero (to handle rounding errors)
+  const THRESHOLD = 1;
+
+  while (true) {
+    // Sort by balance (descending - largest creditor first)
+    remaining.sort((a, b) => b.balance - a.balance);
+
+    const creditor = remaining[0]; // Largest positive balance
+    const debtor = remaining[remaining.length - 1]; // Largest negative balance
+
+    // Check termination conditions
+    if (!creditor || !debtor) break;
+    if (creditor.balance <= THRESHOLD || debtor.balance >= -THRESHOLD) break;
+
+    // Calculate transfer amount (minimum of what creditor should receive and what debtor owes)
+    const amount = Math.min(creditor.balance, Math.abs(debtor.balance));
+
+    // Only record if amount is meaningful
+    if (amount >= THRESHOLD) {
+      settlements.push({
+        from: debtor.memberId,
+        to: creditor.memberId,
+        amount: Math.floor(amount),
+      });
+    }
+
+    // Update balances
+    creditor.balance -= amount;
+    debtor.balance += amount;
+  }
+
+  return settlements;
+}
+
+/**
+ * Format amount as Japanese Yen
+ * @param amount - Amount in JPY
+ * @returns Formatted string (e.g., "¥1,234")
+ */
+export function formatJPY(amount: number): string {
+  return new Intl.NumberFormat('ja-JP', {
+    style: 'currency',
+    currency: 'JPY',
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+/**
+ * Format amount with currency symbol
+ * @param amount - Amount
+ * @param currency - Currency info
+ * @returns Formatted string
+ */
+export function formatCurrency(amount: number, currency: Currency): string {
+  return `${currency.symbol}${new Intl.NumberFormat('ja-JP').format(amount)}`;
+}
