@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAtom, useSetAtom } from 'jotai';
 import { toast } from 'sonner';
@@ -38,6 +38,8 @@ export function CreateGroupForm() {
   const [groupNameError, setGroupNameError] = useState('');
   const [memberNameError, setMemberNameError] = useState('');
 
+  const memberInputRef = useRef<HTMLInputElement>(null);
+
   /**
    * Add a new member to the list
    */
@@ -63,6 +65,9 @@ export function CreateGroupForm() {
     setMembers([...members, newMember]);
     setMemberName('');
     setMemberNameError('');
+
+    // Keep focus on input for quick consecutive additions
+    memberInputRef.current?.focus();
   };
 
   /**
@@ -140,6 +145,7 @@ export function CreateGroupForm() {
           {/* Member Input */}
           <div className="flex gap-2">
             <Input
+              ref={memberInputRef}
               placeholder="名前を入力"
               value={memberName}
               onChange={(e) => {
