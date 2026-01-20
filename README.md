@@ -4,7 +4,6 @@
 [![Tests](https://img.shields.io/badge/tests-21%20passed-brightgreen)](/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](/)
 [![Next.js](https://img.shields.io/badge/Next.js-16.1-black)](/)
-[![License](https://img.shields.io/badge/license-MIT-green)](/)
 
 旅行費用の割り勘を計算するWebアプリケーションです。
 
