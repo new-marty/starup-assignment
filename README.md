@@ -1,10 +1,5 @@
 # 割り勘計算
 
-[![Build](https://img.shields.io/badge/build-passing-brightgreen)](/)
-[![Tests](https://img.shields.io/badge/tests-21%20passed-brightgreen)](/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](/)
-[![Next.js](https://img.shields.io/badge/Next.js-16.1-black)](/)
-
 旅行費用の割り勘を計算するWebアプリケーションです。
 
 ## 特徴
